@@ -18,10 +18,9 @@ def read_hx711():
     for _ in range(24):
         pin_sck.value(1)
         count = count << 1
-        # Lemos o bit ENQUANTO o clock está em alta (1)
         if pin_dt.value() == 1:
             count += 1
-        pin_sck.value(0) # Só depois baixamos o clock
+        pin_sck.value(0) 
     
     # 25º pulso para finalizar a leitura
     pin_sck.value(1)
@@ -31,8 +30,11 @@ def read_hx711():
     if count & 0x800000:
         count -= 0x1000000
         
-    peso = round(count / 420.0)
-    return peso
+    peso_bruto = count / 420.0
+    
+    # Filtro de Passo (Step de 10g): Remove o ruído (ex: 2498 vira 2500)
+    peso_estabilizado = int(round(peso_bruto / 10.0) * 10)
+    return peso_estabilizado
 
 # --- Máquina de Estados ---
 ESTADO_INICIAL = 0
