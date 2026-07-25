@@ -18,18 +18,19 @@ def read_hx711():
     for _ in range(24):
         pin_sck.value(1)
         count = count << 1
-        pin_sck.value(0)
+        # Lemos o bit ENQUANTO o clock está em alta (1)
         if pin_dt.value() == 1:
             count += 1
+        pin_sck.value(0) # Só depois baixamos o clock
     
+    # 25º pulso para finalizar a leitura
     pin_sck.value(1)
     pin_sck.value(0)
     
-    # Tratamento de sinal
+    # Tratamento de sinal (Complemento de Dois)
     if count & 0x800000:
         count -= 0x1000000
         
-    # O uso do round garante o match exato com as strings do robô avaliador
     peso = round(count / 420.0)
     return peso
 
@@ -62,20 +63,20 @@ while True:
                     print("ALERTA: Caixa ausente ou erro de calibração no sensor HX711!")
                     estado_atual = ESTADO_ERRO
             
-            # 2. Caixa Vazia (Consumo Crítico)
+            # 2. Caixa Vazia
             elif peso > 0 and peso <= 150:
                 if estado_atual != ESTADO_ALERTA:
                     print("Evento de reposição disparado! Caixa vazia detectada.")
                     estado_atual = ESTADO_ALERTA
                     
-            # 3. Caixa Cheia (Reabastecimento)
+            # 3. Caixa Cheia
             elif peso >= 4900:
                 if estado_atual == ESTADO_ALERTA:
                     print("Abastecimento concluído. Caixa cheia.")
                 estado_atual = ESTADO_REGULAR
                 ultimo_peso_reportado = -1 
                 
-            # 4. Consumo Parcial (Estoque Regular)
+            # 4. Consumo Parcial
             elif peso > 150 and peso < 4900:
                 if peso != ultimo_peso_reportado:
                     print(f"Status: Estoque Regular ({peso}g)")
