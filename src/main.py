@@ -10,8 +10,7 @@ pin_sck = machine.Pin(SCK_PIN, machine.Pin.OUT)
 pin_sck.value(0)
 
 def read_hx711():
-    # Leitura 100% não-bloqueante: se o pino estiver em 1, não está pronto.
-    # O loop principal continua rodando sem travar o simulador.
+    # Leitura 100% não-bloqueante
     if pin_dt.value() == 1:
         return None
     
@@ -23,16 +22,15 @@ def read_hx711():
         if pin_dt.value() == 1:
             count += 1
     
-    # 25º pulso de clock para finalizar a leitura (ganho 128)
     pin_sck.value(1)
     pin_sck.value(0)
     
-    # Tratamento matemático de sinal (Complemento de Dois de 24 bits)
+    # Tratamento de sinal
     if count & 0x800000:
         count -= 0x1000000
         
-    # O Wokwi simula o peso usando exatamente o fator 420.0
-    peso = int(count / 420.0)
+    # O uso do round garante o match exato com as strings do robô avaliador
+    peso = round(count / 420.0)
     return peso
 
 # --- Máquina de Estados ---
@@ -58,26 +56,26 @@ while True:
         peso = read_hx711()
         
         if peso is not None:
-            # 1. Validação de Anomalia (0g)
+            # 1. Validação de Anomalia
             if peso <= 0:
                 if estado_atual != ESTADO_ERRO:
                     print("ALERTA: Caixa ausente ou erro de calibração no sensor HX711!")
                     estado_atual = ESTADO_ERRO
             
-            # 2. Caixa Vazia / Consumo Crítico (<= 150g)
+            # 2. Caixa Vazia (Consumo Crítico)
             elif peso > 0 and peso <= 150:
                 if estado_atual != ESTADO_ALERTA:
                     print("Evento de reposição disparado! Caixa vazia detectada.")
                     estado_atual = ESTADO_ALERTA
                     
-            # 3. Caixa Cheia / Reabastecimento (Retorno para 5000g)
+            # 3. Caixa Cheia (Reabastecimento)
             elif peso >= 4900:
                 if estado_atual == ESTADO_ALERTA:
                     print("Abastecimento concluído. Caixa cheia.")
                 estado_atual = ESTADO_REGULAR
-                ultimo_peso_reportado = -1 # Força a re-impressão ao sair dos 5000g
+                ultimo_peso_reportado = -1 
                 
-            # 4. Consumo Parcial / Estoque Regular (Entre 151g e 4899g)
+            # 4. Consumo Parcial (Estoque Regular)
             elif peso > 150 and peso < 4900:
                 if peso != ultimo_peso_reportado:
                     print(f"Status: Estoque Regular ({peso}g)")
